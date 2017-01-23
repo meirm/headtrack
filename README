@@ -12,7 +12,7 @@ view direction. This data can be used by external applications
 to control the user view.
 
 Prerequisites:
-You need OpenCV (tested with versions 2.0 and 2.1) installed.
+You need OpenCV (tested with versions 2.4) installed.
 
 Installation:
 Please read the INSTALL file.
@@ -23,5 +23,5 @@ www.headtracking.blogspot.com
 headtrack is free software and licensed under the GNU General 
 Public License, Version 3 or later.
 
-Contact:
-Ralph Glass, Erpelweg 2, 86356 Neusaess, ralph.glass@t-online.de 
+Forked from:
+Ralph Glass, https://github.com/ralph-glass/headtrack
