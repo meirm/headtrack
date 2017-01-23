@@ -1,0 +1,295 @@
+<?xml version="1.0"?>
+
+<!-- Headtracking control dialog -->
+
+<PropertyList>
+  <name>headtracking-dialog</name>
+  <layout>vbox</layout>
+
+ <group>
+  <layout>vbox</layout>
+  <text>
+    <label>Head-Tracking Configuration</label>
+  </text>
+  </group>
+
+ <group>
+  <layout>hbox</layout>
+
+ <group>
+   <layout>vbox</layout>
+
+   <text><label>Pitch Factor</label></text>
+   <dial>
+    <wrap>false</wrap>
+    <min>-100</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/pitch-factor</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f u</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/pitch-factor</property>
+   </text>
+  </group>
+
+ <group>
+   <layout>vbox</layout>
+
+   <text><label>Yaw Factor</label></text>
+   <dial>
+    <wrap>false</wrap>
+    <min>-100</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/yaw-factor</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f u</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/yaw-factor</property>
+   </text>
+  </group>
+
+  <group>
+   <layout>vbox</layout>
+
+   <text><label>Roll Factor</label></text>
+   <dial>
+    <wrap>false</wrap>
+    <min>-100</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/roll-factor</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f u</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/roll-factor</property>
+   </text>
+  </group>
+ </group>
+
+  <hrule/>
+
+ <group>
+  <layout>hbox</layout>
+
+ <group>
+   <layout>vbox</layout>
+
+   <text><label>Left/Right</label></text>
+   <dial>
+    <wrap>false</wrap>
+    <min>-100</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/x-factor</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f u</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/x-factor</property>
+   </text>
+  </group>
+
+ <group>
+   <layout>vbox</layout>
+
+   <text><label>Down/Up</label></text>
+   <dial>
+    <wrap>false</wrap>
+    <min>-100</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/y-factor</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f u</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/y-factor</property>
+   </text>
+  </group>
+
+  <group>
+   <layout>vbox</layout>
+
+   <text><label>Fwd/Back</label></text>
+   <dial>
+    <wrap>false</wrap>
+    <min>-100</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/z-factor</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f u</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/z-factor</property>
+   </text>
+  </group>
+ </group>
+
+  <hrule/>
+
+ <group>
+  <layout>hbox</layout>
+
+ <group>
+   <layout>vbox</layout>
+
+   <text><label>Deadzone</label></text>
+   <dial>
+    <wrap>true</wrap>
+    <min>0</min>
+    <max>100</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/deadzone</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>-100.00</label>
+    <format>%-0.2f</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/deadzone</property>
+   </text>
+  </group>
+
+ <group>
+   <layout>vbox</layout>
+
+   <text><label>Yaw Linear Factor</label></text>
+   <dial>
+    <wrap>true</wrap>
+    <min>1</min>
+    <max>20</max>
+    <stretch>true</stretch>
+    <property>/sim/headtracking/factors/yaw-factor-linear</property>
+    <binding><command>dialog-apply</command></binding>
+   </dial>
+
+   <text>
+    <label>20</label>
+    <format>%-0.2f</format>
+    <live>true</live>
+    <property>/sim/headtracking/factors/yaw-factor-linear</property>
+   </text>
+  </group>
+
+ </group>
+
+  <hrule/>
+  <group>
+  <layout>hbox</layout>
+  <group>
+   <layout>hbox</layout>
+    <text>
+      <row>0</row>
+      <col>0</col>
+      <label>Enabled</label>
+      <padding>10</padding>
+    </text>
+    
+    <checkbox>
+      <row>0</row>
+      <col>1</col>
+      <property>/sim/headtracking/enabled</property>
+      <binding>
+        <command>dialog-apply</command>
+      </binding>
+    </checkbox>
+  </group>
+
+  <group>
+   <layout>hbox</layout>
+    <text>
+      <row>0</row>
+      <col>0</col>
+      <label>Zoom Panel</label>
+      <padding>10</padding>
+    </text>
+    
+    <checkbox>
+      <row>0</row>
+      <col>1</col>
+      <property>/sim/headtracking/zoom-panel</property>
+      <binding>
+        <command>dialog-apply</command>
+      </binding>
+    </checkbox>
+  </group>
+
+ <group>
+   <layout>hbox</layout>
+    <text>
+      <row>0</row>
+      <col>0</col>
+      <label>Mirror</label>
+      <padding>10</padding>
+    </text>
+
+    <checkbox>
+      <row>0</row>
+      <col>1</col>
+      <property>/sim/headtracking/mirror</property>
+      <binding>
+        <command>dialog-apply</command>
+      </binding>
+    </checkbox>
+  </group>
+
+  </group>
+
+
+ <group>
+   <layout>hbox</layout>
+  <hrule/>
+ </group>
+
+ <group>
+   <layout>hbox</layout>
+   <empty><stretch>true</stretch></empty>
+   <button>
+     <legend>OK</legend>
+     <equal>true</equal>
+     <default>true</default>
+     <key>Esc</key>
+     <binding><command>dialog-apply</command></binding>
+     <binding><command>dialog-close</command></binding>
+   </button>
+   <empty><stretch>true</stretch></empty>
+ </group>
+  <group>
+    <layout>hbox</layout>
+    <default-padding>10</default-padding>
+    
+    <button>
+      <legend>Close</legend>
+      <default>true</default>
+      <key>Esc</key>
+      <binding>
+        <command>dialog-close</command>
+      </binding>
+    </button>
+  </group>
+</PropertyList>

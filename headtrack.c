@@ -1,7 +1,13 @@
 /*
-    headtrack - Webcam Head Tracking Datagram Server V0.0.0
+    headtrack - Webcam Head Tracking Server V0.1.1
 
-    Copyright 2010 Ralph Glass
+    Copyright 2010 2011 Ralph Glass, Meir Michanie
+
+    ralph.glass@t-online.de
+    meirm@riunx.com    
+
+    UDP Transmitter Code is used from GPL headtracker programm 
+    by Anders Gidenstamm
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +23,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// gcc headtrack.c -lz -msse -I/usr/include/X11 -W -msse2 -std=c99 -fomit-frame-pointer -fno-strict-aliasing -m64 -mtune=amdfam10 -Wno-unused-parameter -Wno-unused-value -Wno-unused-function -W -Wall -O3 -I/usr/include/X11 `pkg-config --cflags --libs opencv x11 gtk+-2.0 gthread-2.0` -o headtrack `pkg-config opencv --libs` -lopencv_objdetect -lopencv_features2d -lopencv_imgproc -lopencv_highgui -lopencv_core -lm
+//
 #define _GNU_SOURCE
 
 #include <stdbool.h>
@@ -28,6 +36,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <pthread.h>
@@ -37,21 +47,22 @@
 #include <sched.h>
 #include <fcntl.h>
 #include <linux/input.h>
-#include <linux/uinput.h>
 
 #define FACEALT_OLD "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
-#define FACEALT "/usr/share/doc/opencv-doc/examples/haarcascades/haarcascades/haarcascade_frontalface_alt.xml.gz"
+#define FACEALT_NEW "/usr/share/doc/opencv-doc/examples/haarcascades/haarcascades/haarcascade_frontalface_alt.xml.gz"
+#define FACEALT_ALT1 "/usr/local/headtrack/haarcascade_frontalface_alt.xml"
+#define FACEALT "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
 #define CANNY CV_HAAR_DO_CANNY_PRUNING
 #define BIGGEST CV_HAAR_FIND_BIGGEST_OBJECT
 #define SCALE_IMAGE CV_HAAR_SCALE_IMAGE
 #define ROUGH CV_HAAR_DO_ROUGH_SEARCH
 #define HAAR_SCALE 1.1
-#define SEARCH_SIZE cvSize(96, 96)
+#define SEARCH_SIZE cvSize(256,256)
+#define MIN_SIZE cvSize(90,90)
 
-#define SOCKET_PATH "/tmp/headtrackserver"
 #define bzero(ptr, len) 
 
-#define DELAY 66
+#define DELAY 33
 #define VERBOSE 0
 #define SHOWWINDOW 1
 #define SMALLWINDOW true
@@ -65,47 +76,24 @@
 int vflag = 0;
 int sflag = 0;
 int hflag = 0;
+char facealtxml[128];
 
 void printusage ()
 {
-  printf("headtrack [-v] [-h]\n");
-  printf("headtrack -v\t#verbose\n");
   printf("headtrack -h\t#this help\n");
 }
 
-static int uinput_fd = -1;
-struct uinput_user_dev device;
+/* transmitter global data */
+int period = DELAY; // milliseconds
+char *host = "127.0.0.1";
+int port = 49405;
+static void* transmitter(void*);
+static void  init(int, char**);
+static void  encodeFloat(char* buf, float val);
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 struct input_event event;
-
-int setup_uinput_device()
-{
-  uinput_fd = open("/dev/uinput", O_WRONLY | O_NDELAY);
-  if (uinput_fd < 0)
-    {
-       printf("Unable to open /dev/uinput\n");
-       return -1;
-    }
-  memset(&device,0,sizeof(device)); // Intialize the uInput device to NULL
-  strncpy(device.name, "headtrack device", UINPUT_MAX_NAME_SIZE);
-  device.id.version = 4;
-  device.id.bustype = BUS_USB;
-
-  // Setup the uinput virtual mouse device
-  ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
-  ioctl(uinput_fd, UI_SET_EVBIT, EV_REL);
-  ioctl(uinput_fd, UI_SET_RELBIT, REL_X);
-  ioctl(uinput_fd, UI_SET_RELBIT, REL_Y);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_MOUSE);
-
-  /* Create input device into input sub-system */
-  write(uinput_fd, &device, sizeof(device));
-  if (ioctl(uinput_fd, UI_DEV_CREATE))
-    {
-      printf("Unable to create UINPUT device.");
-      return -1;
-    }
-  return 1;
-}
 
 /* Send Variables */
 int sendvalx=0; 
@@ -116,44 +104,11 @@ float sendpitch=0;
   
 int main(int argc, char **argv)
 { 
-  bool virtualmouse = false;
-
-  if (setup_uinput_device() < 0) // setup needs file access or root
-    {
-       printf("uinput device not found\n");
-       return -1;
-    }
-  
-  int index;
-  int c;
+  init(argc, argv);
   opterr = 0;
-  while ((c = getopt(argc, argv, "vhm")) != -1)
-  switch (c)
-    {
-    case 'v':
-      vflag = 1;
-      break;
-    case 'm':
-      virtualmouse = true;
-      break;
-    case 'h':
-      printusage();
-      return 0;
-      break;
-    case '?':
-      printusage();
-      return 1;
-    default:
-      abort();
-    }
-  /* printf ("vflag = %d, hflag = %d\n", vflag, hflag); */
-  for (index = optind; index < argc; index++)
-    printf ("Non-option argument %s\n", argv[index]);
-  pthread_t thread; 
-  char *t_argument = NULL;
-  int new_thread;
-  void *datagram_server(void *ptr);
-
+  pthread_t transmitterThread;
+  int new_transmitterthread=0;
+  new_transmitterthread++; // to avoid the false erro
   // set affinity
   pid_t getpid(void);
   pid_t pid;
@@ -165,7 +120,7 @@ int main(int argc, char **argv)
 
   if (DATA_OUTPUT_ENABLED)
     {
-      new_thread = pthread_create(&thread, NULL, datagram_server,(void *) t_argument);
+      new_transmitterthread = pthread_create(&transmitterThread, NULL, transmitter, NULL);
     }
 
   int done = 0;
@@ -203,8 +158,17 @@ int main(int argc, char **argv)
       zsmooth[i]=0;
     }
 
-  CvHaarClassifierCascade* cascade = cvLoad(FACEALT , NULL, NULL, NULL );
-  
+
+  CvHaarClassifierCascade* cascade = cvLoad(facealtxml, NULL, NULL, NULL );
+  if (!cascade) 
+      { cascade = cvLoad(FACEALT_OLD , NULL, NULL, NULL ); }
+  if (!cascade)
+      { cascade = cvLoad(FACEALT_NEW , NULL, NULL, NULL ); }
+  if (!cascade)
+    {
+      fprintf ( stderr, "Sorry, cannot open cascade file.\n" );
+    }
+
   IplImage *img = NULL;
   img = cvCreateImage(cvSize(sizex,sizey),IPL_DEPTH_8U,3);
   IplImage *capimg = NULL;
@@ -254,7 +218,7 @@ int main(int argc, char **argv)
 
       bool frontal = false;     
       faces = cvHaarDetectObjects( imggray, cascade, store, HAAR_SCALE, 2, 
-                                   BIGGEST + ROUGH, SEARCH_SIZE);
+                                   BIGGEST + ROUGH,MIN_SIZE, SEARCH_SIZE);
       if (faces->total > 0)
         {
         frontal = true;
@@ -265,7 +229,7 @@ int main(int argc, char **argv)
           cvWarpAffine( imggray, rotimg, translate, CV_INTER_LINEAR 
                           + CV_WARP_FILL_OUTLIERS, cvScalarAll(0));
           faces = cvHaarDetectObjects(rotimg, cascade, store, HAAR_SCALE, 2, 
-                                      BIGGEST + ROUGH, SEARCH_SIZE);
+                                      BIGGEST + ROUGH,MIN_SIZE, SEARCH_SIZE);
         }
 
       if (faces->total == 0) // no face detected -> rotate image right
@@ -273,7 +237,7 @@ int main(int argc, char **argv)
           cvWarpAffine( imggray, rotimg2, translate_right, CV_INTER_LINEAR 
                           + CV_WARP_FILL_OUTLIERS, cvScalarAll(0));
           faces = cvHaarDetectObjects(rotimg2, cascade, store, HAAR_SCALE, 2, 
-                                      BIGGEST + ROUGH, SEARCH_SIZE);
+                                      BIGGEST + ROUGH, MIN_SIZE,SEARCH_SIZE);
         }
       
       for (int i = 0; i < faces -> total ; i++) 
@@ -412,34 +376,6 @@ int main(int argc, char **argv)
           done = 1;
         }
 
-      if (c == 109) // m KEY
-        {
-          virtualmouse = !virtualmouse;
-        }
-
-      if (virtualmouse == true)
-        {
-           int mx = 0;
-           int my = 0;
-           if (abs(xval) > 20) mx = xval / 5; // sensitivity 
-           if (abs(yval) > 20) my = yval / 5;
-
-           memset(&event, 0, sizeof(event));
-           gettimeofday(&event.time, NULL);
-           event.type = EV_REL;
-           event.code = REL_X;
-           event.value = mx;
-           write(uinput_fd, &event, sizeof(event));
-           event.type = EV_REL;
-           event.code = REL_Y;
-           event.value = my;
-           write(uinput_fd, &event, sizeof(event));
-           event.type = EV_SYN;
-           event.code = SYN_REPORT;
-           event.value = 0;
-           write(uinput_fd, &event, sizeof(event));
-
-        }
 
     }
 
@@ -450,67 +386,101 @@ int main(int argc, char **argv)
   cvReleaseCapture ( &capture );
   cvDestroyWindow( "ShowImage" );
   cvReleaseMemStorage( &store );
-
-  unlink(SOCKET_PATH);
   
   return 0;
 }
 
-void *datagram_server (void *ptr) 
+static void init(int argc, char** argv)
 {
-  int sock, n;
-  char sendbuffer[128];
-  socklen_t fromlen;
-  struct sockaddr_un server;
-  struct sockaddr_un from;
-
-  if ((sock = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) 
-    {
-      perror("socket");
-      exit (0);
+ char line[512];
+ int i;
+ for (i = 1; i < argc; i++) {
+    if ((0 == strcmp(argv[i], "--help")) ||
+  (0 == strcmp(argv[i], "-h"))) {
+      printusage;
+      printf("debug message 1\n");
+      printf("headtrack --host <host> --port <port> --period <100>\n");
+      exit(0);
+    } else if (0 == strcmp(argv[i], "--host") && (++i < argc)) {
+      host = argv[i];
+    } else if (0 == strcmp(argv[i], "--port") && (++i < argc)) {
+      port = strtol(argv[i], NULL, 10);
+    } else if (0 == strcmp(argv[i], "--xml") && (++i < argc)) {
+      strcpy(facealtxml,argv[i]);	
+    } else if (0 == strcmp(argv[i], "--period") && (++i < argc)) {
+      period = strtol(argv[i], NULL, 10);
+    } else if (i < argc) {
+      strcat(line, " ");
+      strcat(line, argv[i]);
+    } else {
+      /* Bad command line. */
+      printf("Bad command line\n");
+      exit(-1);
     }
+ }
+}
 
-  bzero( &server, sizeof( server ) );
-  server.sun_family = AF_UNIX;
-  strcpy( server.sun_path, SOCKET_PATH );
+static void   encodeFloat(char* buf, float val)
+{
+  uint32_t tmp = htonl(*(uint32_t *)&val);
+  memcpy(buf, &tmp, sizeof(uint32_t));
+}
+static float   decodeFloat(char* buf)
+{
+  uint32_t tmp = ntohl(*(uint32_t *)buf);
+  return *(float *)&tmp;
+}
+static void *transmitter(void *arg)
+/* flightgear data transmitter */
+{
+  int outsocket;
+  struct in_addr    destIP;
+  struct timespec   delay;
+  struct sockaddr_in destAddr;
 
-  if ( bind( sock, (struct sockaddr *)&server, sizeof( server ) ) == -1 ) 
+  delay.tv_sec = period / 1000;
+  delay.tv_nsec = (period%1000)*1000000;
+
+  if (-1 == (outsocket = socket(PF_INET, SOCK_DGRAM, 0))) {
+    perror("headtrack.c: socket()");
+    exit(-1);
+  }
+
+  if (0 == inet_aton(host, &destIP)) {
+    fprintf(stderr, "headtrack.c: inet_aton() failed.\n");
+    exit(-1);
+  }
+
+  fprintf(stderr, "headtrack.c: Created socket. Destination = %s:%d!\n",
+   host, port);
+
+  bzero((char *)&destAddr, sizeof(destAddr));
+
+  destAddr.sin_family      = PF_INET;
+  destAddr.sin_addr.s_addr = destIP.s_addr;
+  destAddr.sin_port        = htons(port);
+
+  for (;;) {
+    const int packetSize = 1 + 6*sizeof(float);
+    char msg[packetSize];
+    nanosleep(&delay, NULL);
+    pthread_mutex_lock(&mutex);
+    msg[0]= 1;
+    encodeFloat(&msg[1], (float)sendyaw);
+    encodeFloat(&msg[5], (float)0.0);
+    encodeFloat(&msg[9], (float)sendpitch);
+    encodeFloat(&msg[13], (float)sendvalx);
+    encodeFloat(&msg[17], (float)sendvaly);
+    encodeFloat(&msg[21], (float)sendvalz);
+
+    //printf("sending\n");
+    //printf("(x,y,z)=(%f,%f,%f)\n",decodeFloat(&msg[13]),decodeFloat(&msg[17]),decodeFloat(&msg[21]));
+    pthread_mutex_unlock(&mutex);
+    if (-1 == sendto(outsocket, msg, sizeof(msg), 0, (struct sockaddr*)&destAddr, sizeof(destAddr))) 
     {
-      if (remove("/tmp/headtrackserver") == -1)
-        {
-          perror("bind. (Sorry, remove failed also.)");
-          close(sock);
-          exit(0);
-        }
-      printf("Info: Removed locked SOCKET_PATH.");
+      perror("headtrack.c: sento()");
+      exit(-1);
     }
-
-  fromlen = sizeof(from);
-
-  while (1)  
-   {
-     if ((n = recvfrom(sock,sendbuffer,128,0,(struct sockaddr*)&from,&fromlen)) < 0) 
-       {
-         perror("server: recvfrom\n");
-         exit (0);
-       }
-
-     bzero(&sendbuffer,sizeof(sendbuffer));
-     sprintf(sendbuffer,"%4d%4d%4d%+6.4f",sendvalx,sendvaly,sendvalz,sendyaw);
-     sprintf(sendbuffer + 4 + 4 + 4 + 7,"%+6.4f\n",sendpitch);
-
-     if (VERBOSE + vflag == 1)
-       {
-          printf("\n%s\n",sendbuffer);
-       }    
-
-     if ((n = sendto(sock,sendbuffer,sizeof(sendbuffer),0,
-               (struct sockaddr*)&from,fromlen)) < 0) 
-       {
-         //perror("sendto\n");
-       }
-  pthread_yield();
-   }
-  unlink(SOCKET_PATH);
-  close(sock);  
+ }
+ close(outsocket);
 }

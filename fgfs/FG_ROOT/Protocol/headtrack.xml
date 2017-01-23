@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+
+<PropertyList>
+
+ <comment>
+  <![CDATA[
+    Usage:
+               fgfs --generic=socket,in,<period>,,<port>,udp,headtrack
+  ]]>
+ </comment>
+
+ <generic>
+
+  <input>
+   <binary_mode>true</binary_mode>
+   <byte_order>network</byte_order>
+   <record_length>25</record_length>   
+
+   <chunk>
+    <name>version</name>
+    <type>bool</type>
+    <node>/sim/headtracking/updated</node>
+   </chunk>
+   <chunk>
+    <name>heading-deg</name>
+    <type>float</type>
+    <node>/sim/headtracking/orientation/heading-deg</node>
+   </chunk>
+   <chunk>
+    <name>roll-deg</name>
+    <type>float</type>
+    <node>/sim/headtracking/orientation/roll-deg</node>
+   </chunk>
+   <chunk>
+    <name>pitch-deg</name>
+    <type>float</type>
+    <node>/sim/headtracking/orientation/pitch-deg</node>
+   </chunk>
+
+   <chunk>
+    <name>position-x</name>
+    <type>float</type>
+    <factor>0.001</factor>
+    <node>/sim/headtracking/position/x-offset-m</node>
+   </chunk>
+   <chunk>
+    <name>position-y</name>
+    <type>float</type>
+    <factor>0.001</factor>
+    <node>/sim/headtracking/position/y-offset-m</node>
+   </chunk>
+   <chunk>
+    <name>position-z</name>
+    <type>float</type>
+    <factor>0.001</factor>
+    <node>/sim/headtracking/position/z-offset-m</node>
+   </chunk>
+
+  </input>
+ </generic>
+
+</PropertyList>
