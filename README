@@ -2,6 +2,9 @@ headtrack
 
 Head Tracking with a Webcam
 
+Demo:
+https://youtu.be/HPvZFophK_A
+
 Introduction:
 The program headtrack shows a video stream from your webcam 
 in a window and draws a box around the detected head. Then
